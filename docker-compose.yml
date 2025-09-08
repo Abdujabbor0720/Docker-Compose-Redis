@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # PostgreSQL ma'lumotlar bazasi
+  postgres:
+    image: postgres:15-alpine
+    container_name: learning_center_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: learning_center
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - learning_center_network
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: learning_center_redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - learning_center_network
+
+  # NestJS ilovasi
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: learning_center_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: learning_center
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: your-secret-key-here
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - learning_center_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  learning_center_network:
+    driver: bridge
